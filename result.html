@@ -2,235 +2,128 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>정치 성향 결과</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
   <style>
     body {
-      font-family: sans-serif;
-      background: #f0f0f5;
-      margin: 0;
-      padding: 1rem;
+      font-family: 'Segoe UI', sans-serif;
+      padding: 2rem;
+      background-color: #f5f7fa;
     }
     .container {
-      max-width: 700px;
-      background: white;
+      max-width: 800px;
       margin: auto;
+      background: white;
       padding: 2rem;
-      border-radius: 10px;
-      box-shadow: 0 0 10px #ccc;
+      border-radius: 16px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 1rem;
+    }
+    #chart {
+      max-width: 500px;
+      margin: 2rem auto;
+    }
+    .result-summary {
+      font-size: 1rem;
+      margin-top: 2rem;
       text-align: center;
     }
-    canvas {
-      max-width: 100%;
+    .button-box {
       margin-top: 2rem;
+      text-align: center;
     }
-    .summary, .ideology {
-      margin-top: 2rem;
-      text-align: left;
-    }
-    .btn {
-      margin-top: 1.5rem;
+    button {
       padding: 0.7rem 1.5rem;
-      background: #007BFF;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
       font-size: 1rem;
-    }
-    #captureArea {
-      background: white;
-      padding: 1rem;
+      border: none;
       border-radius: 10px;
-    }
-    .ideology-icon {
-      font-size: 2rem;
-      margin-right: 10px;
-    }
-    .ideology-box {
-      border-left: 5px solid #007BFF;
-      padding-left: 1rem;
-      margin-top: 1rem;
-    }
-    .more-link {
-      display: inline-block;
-      margin-top: 0.5rem;
-      color: #007BFF;
-      text-decoration: underline;
+      background-color: #00aaff;
+      color: white;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>정치 성향 결과 요약</h1>
-    <div id="captureArea">
-      <canvas id="resultChart"></canvas>
-      <div class="summary" id="resultText"></div>
-      <div class="ideology ideology-box" id="ideologyText"></div>
+    <h1>당신의 정치 성향 결과</h1>
+    <canvas id="chart"></canvas>
+    <div class="result-summary" id="summary">결과를 분석 중입니다...</div>
+    <div class="button-box">
+      <button onclick="copyLink()">결과 링크 복사</button>
     </div>
-    <button class="btn" onclick="downloadImage()">이미지로 저장하기</button>
   </div>
 
   <script>
-    const qs = new URLSearchParams(window.location.search);
-    const result = {
-      economic: parseFloat(qs.get('economic')),
-      welfare: parseFloat(qs.get('welfare')),
-      diversity: parseFloat(qs.get('diversity')),
-      security: parseFloat(qs.get('security')),
-      order: parseFloat(qs.get('order'))
+    const params = new URLSearchParams(location.search);
+    const axisScores = JSON.parse(decodeURIComponent(params.get("axisScores")));
+
+    const chartData = {
+      labels: ['경제관', '사회관', '권위관', '국제관'],
+      datasets: [{
+        label: '성향 점수',
+        data: [
+          axisScores.economy,
+          axisScores.society,
+          axisScores.authority,
+          axisScores.global
+        ],
+        backgroundColor: 'rgba(0, 170, 255, 0.4)',
+        borderColor: '#00aaff',
+        borderWidth: 2
+      }]
     };
 
-    const ctx = document.getElementById('resultChart');
-    new Chart(ctx, {
+    new Chart(document.getElementById('chart'), {
       type: 'radar',
-      data: {
-        labels: ['시장경제', '복지', '다양성', '안보', '질서'],
-        datasets: [{
-          label: '당신의 정치 성향',
-          data: [
-            result.economic,
-            result.welfare,
-            result.diversity,
-            result.security,
-            result.order
-          ],
-          backgroundColor: 'rgba(54, 162, 235, 0.2)',
-          borderColor: 'rgba(54, 162, 235, 1)',
-          borderWidth: 2
-        }]
-      },
+      data: chartData,
       options: {
         scales: {
           r: {
-            suggestedMin: 1,
-            suggestedMax: 5,
-            ticks: { stepSize: 1 }
+            min: 0,
+            max: 50,
+            ticks: {
+              stepSize: 5
+            }
           }
         }
       }
     });
 
-    const explain = (score, high, low) => {
-      if (score >= 4) return high + ' (매우 강함)';
-      if (score >= 3.5) return high + ' (강함)';
-      if (score >= 2.5) return '중도적 성향';
-      if (score >= 2) return low + ' (강함)';
-      return low + ' (매우 강함)';
-    };
+    function classify(score) {
+      const { economy, society, authority, global } = score;
+      let result = "";
 
-    const summary = `
-      <h3>해설</h3>
-      <ul>
-        <li><b>시장경제:</b> ${explain(result.economic, '시장 자유 중시', '정부 개입 지지')}</li>
-        <li><b>복지:</b> ${explain(result.welfare, '복지 확대 지지', '개인 책임 강조')}</li>
-        <li><b>다양성:</b> ${explain(result.diversity, '다양성 포용', '보수적 접근')}</li>
-        <li><b>안보:</b> ${explain(result.security, '안보 우선', '자유 우선')}</li>
-        <li><b>질서:</b> ${explain(result.order, '질서 유연성 지향', '전통 질서 중시')}</li>
-      </ul>
-    `;
-    document.getElementById('resultText').innerHTML = summary;
+      if (economy < 12 && society > 12 && authority < 12 && global > 12) {
+        result = "진보적 자유주의";
+        link = "progressive-liberalism.html";
+      } else if (economy < 12 && society < 12 && authority < 12 && global < 12) {
+        result = "자유지상주의";
+        link = "libertarian-left.html";
+      } else if (economy > 12 && authority > 12 && society > 12) {
+        result = "권위주의적 보수주의";
+        link = "authoritarian-conservatism.html";
+      } else if (authority > 12 && society < 12) {
+        result = "좌파 권위주의";
+        link = "left-authoritarian.html";
+      } else {
+        result = "중도";
+        link = "moderate.html";
+      }
 
-    const ideologyLinks = {
-      "권위주의적 보수주의": "authoritarian-conservatism.html",
-      "자유지상주의": "libertarianism.html",
-      "진보적 자유주의": "progressive-liberalism.html",
-      "사회민주주의": "social-democracy.html",
-      "중도우파": "center-right.html",
-      "좌파 권위주의": "left-authoritarian.html",
-      "중도 자유주의": "moderate-liberalism.html",
-      "보수 자유주의": "right-libertarian.html",
-      "진보 사회주의": "left-progressive.html",
-      "중도": "centrist.html"
-    };
-
-    const icons = {
-      "권위주의적 보수주의": "🔒",
-      "자유지상주의": "🕊️",
-      "진보적 자유주의": "🌈",
-      "사회민주주의": "🤝",
-      "중도우파": "⚖️",
-      "좌파 권위주의": "🛡️",
-      "중도 자유주의": "🔍",
-      "보수 자유주의": "🏛️",
-      "진보 사회주의": "🌿",
-      "중도": "🧭"
-    };
-
-    let ideology = "중도";
-    let desc = "당신은 다양한 이념 스펙트럼에서 균형 잡힌 입장을 취하며, 상황에 따라 유연하게 판단합니다.";
-    let figures = "버락 오바마, 앙겔라 메르켈";
-
-    const { economic: e, welfare: w, diversity: d, security: s, order: o } = result;
-
-    if (e >= 4 && w <= 2 && d <= 2 && s >= 4 && o >= 4) {
-      ideology = "권위주의적 보수주의";
-      desc = "질서, 안보, 전통을 중시하며 강한 정부 통제를 선호합니다.";
-      figures = "블라디미르 푸틴, 박정희";
-    } else if (e >= 4 && w <= 2 && d >= 4 && s <= 2 && o <= 2) {
-      ideology = "자유지상주의";
-      desc = "시장의 자유와 개인의 자유를 극도로 중시하며 정부 개입을 최소화하려 합니다.";
-      figures = "로버트 노직, 론 폴";
-    } else if (e <= 2 && w >= 4 && d >= 4 && s <= 2 && o <= 2) {
-      ideology = "진보적 자유주의";
-      desc = "사회적 다양성과 평등, 약자 보호를 지지하며 자유로운 사회를 추구합니다.";
-      figures = "알렉산드리아 오카시오-코르테즈, 노엄 촘스키";
-    } else if (e <= 2 && w >= 4 && d <= 2 && s >= 4 && o >= 4) {
-      ideology = "사회민주주의";
-      desc = "복지를 통한 평등을 추구하지만, 안보와 질서도 중시하는 성향입니다.";
-      figures = "올라프 숄츠, 프랑수아 미테랑";
-    } else if (e >= 4 && w <= 2 && d >= 3.5 && s >= 4 && o <= 2.5) {
-      ideology = "중도우파";
-      desc = "시장경제와 개인 책임을 중시하면서도, 일부 사회적 다양성은 수용합니다.";
-      figures = "에마뉘엘 마크롱, 데이비드 캐머런";
-    } else if (e <= 2 && w >= 4 && d >= 4 && s >= 4 && o >= 4) {
-      ideology = "좌파 권위주의";
-      desc = "평등과 복지를 중시하지만, 질서와 통제의 필요성도 인정합니다.";
-      figures = "우고 차베스, 펠릭스 디아즈";
-    } else if (e >= 3 && e <= 3.5 && w >= 3 && w <= 3.5 && d >= 3 && d <= 3.5) {
-      ideology = "중도 자유주의";
-      desc = "중도의 입장에서 자유와 복지의 균형을 추구합니다.";
-      figures = "저스틴 트뤼도, 안철수";
-    } else if (e >= 4 && w <= 2 && d >= 3 && s >= 3 && o >= 3) {
-      ideology = "보수 자유주의";
-      desc = "시장과 개인의 자유를 중시하며, 전통과 국가 안보에도 가치를 둡니다.";
-      figures = "프리드리히 하이에크, 밀턴 프리드먼";
-    } else if (e <= 2 && w >= 4 && d >= 4 && s <= 2.5 && o <= 2.5) {
-      ideology = "진보 사회주의";
-      desc = "경제적 불평등 해소와 약자 보호를 최우선 과제로 보며, 다양성과 복지를 강조합니다.";
-      figures = "버니 샌더스, 제레미 코빈";
+      document.getElementById('summary').innerHTML =
+        `<p><strong>${result}</strong> 성향입니다.</p><p><a href='${link}'>→ 자세히 보기</a></p>`;
     }
 
-    const color = {
-      "권위주의적 보수주의": "#b22222",
-      "자유지상주의": "#008080",
-      "진보적 자유주의": "#ff69b4",
-      "사회민주주의": "#006400",
-      "중도우파": "#4682b4",
-      "좌파 권위주의": "#9932cc",
-      "중도 자유주의": "#1e90ff",
-      "보수 자유주의": "#000080",
-      "진보 사회주의": "#dc143c",
-      "중도": "#696969"
-    };
-
-    document.getElementById('ideologyText').innerHTML = `
-      <h3><span class="ideology-icon">${icons[ideology] || "🧭"}</span> <span style="color:${color[ideology] || '#007BFF'}">${ideology}</span></h3>
-      <p>${desc}</p>
-      <p><b>대표적 인물:</b> ${figures}</p>
-      <a href="${ideologyLinks[ideology] || '#'}" class="more-link" target="_blank">👉 더 자세히 알아보기</a>
-    `;
-
-    function downloadImage() {
-      html2canvas(document.querySelector("#captureArea")).then(canvas => {
-        const link = document.createElement('a');
-        link.download = 'political_result.png';
-        link.href = canvas.toDataURL();
-        link.click();
+    function copyLink() {
+      navigator.clipboard.writeText(window.location.href).then(() => {
+        alert('결과 링크가 복사되었습니다.');
       });
     }
+
+    classify(axisScores);
   </script>
 </body>
 </html>

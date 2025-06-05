@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>정치 성향 결과</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f0f0f5;
+      margin: 0;
+      padding: 1rem;
+    }
+    .container {
+      max-width: 700px;
+      background: white;
+      margin: auto;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 0 10px #ccc;
+      text-align: center;
+    }
+    canvas {
+      max-width: 100%;
+      margin-top: 2rem;
+    }
+    .summary {
+      margin-top: 2rem;
+      text-align: left;
+    }
+    .btn {
+      margin-top: 1.5rem;
+      padding: 0.7rem 1.5rem;
+      background: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    #captureArea {
+      background: white;
+      padding: 1rem;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>정치 성향 결과 요약</h1>
+    <div id="captureArea">
+      <canvas id="resultChart"></canvas>
+      <div class="summary" id="resultText"></div>
+    </div>
+    <button class="btn" onclick="downloadImage()">이미지로 저장하기</button>
+  </div>
+
+  <script>
+    const qs = new URLSearchParams(window.location.search);
+    const result = {
+      economic: parseFloat(qs.get('economic')),
+      welfare: parseFloat(qs.get('welfare')),
+      diversity: parseFloat(qs.get('diversity')),
+      security: parseFloat(qs.get('security')),
+      order: parseFloat(qs.get('order'))
+    };
+
+    const ctx = document.getElementById('resultChart');
+    new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: ['시장경제', '복지', '다양성', '안보', '질서'],
+        datasets: [{
+          label: '당신의 정치 성향',
+          data: [
+            result.economic,
+            result.welfare,
+            result.diversity,
+            result.security,
+            result.order
+          ],
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        scales: {
+          r: {
+            suggestedMin: 1,
+            suggestedMax: 5,
+            ticks: { stepSize: 1 }
+          }
+        }
+      }
+    });
+
+    const explain = (score, high, low) => {
+      if (score >= 4) return high + ' (매우 강함)';
+      if (score >= 3.5) return high + ' (강함)';
+      if (score >= 2.5) return '중도적 성향';
+      if (score >= 2) return low + ' (강함)';
+      return low + ' (매우 강함)';
+    };
+
+    const summary = `
+      <h3>해설</h3>
+      <ul>
+        <li><b>시장경제:</b> ${explain(result.economic, '시장 자유 중시', '정부 개입 지지')}</li>
+        <li><b>복지:</b> ${explain(result.welfare, '복지 확대 지지', '개인 책임 강조')}</li>
+        <li><b>다양성:</b> ${explain(result.diversity, '다양성 포용', '보수적 접근')}</li>
+        <li><b>안보:</b> ${explain(result.security, '안보 우선', '자유 우선')}</li>
+        <li><b>질서:</b> ${explain(result.order, '질서 유연성 지향', '전통 질서 중시')}</li>
+      </ul>
+    `;
+    document.getElementById('resultText').innerHTML = summary;
+
+    function downloadImage() {
+      html2canvas(document.querySelector("#captureArea")).then(canvas => {
+        const link = document.createElement('a');
+        link.download = 'political_result.png';
+        link.href = canvas.toDataURL();
+        link.click();
+      });
+    }
+  </script>
+</body>
+</html>
